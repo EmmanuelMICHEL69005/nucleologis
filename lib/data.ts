@@ -135,7 +135,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-1600762849691-4b51bc94009c?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.9, review_count: 31,
     description: 'Appartement T2 entièrement meublé à 2 km de la centrale du Tricastin. Cuisine ouverte, chambre avec rangements, parking privé.',
-    owner: { id: 'o1', full_name: 'Marie D.', verified: true, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o1', full_name: 'Marie D.', verified: true, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '2', site: 'tricastin', site_name: 'Tricastin', type: 'maison',
@@ -147,7 +147,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-CrDUaldMlNM?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.7, review_count: 18,
     description: 'Grande maison 95m² avec jardin. Idéale équipe ou famille. 3 chambres, 2 SDB, terrasse. Parking 2 voitures, accès A7 à 3 km.',
-    owner: { id: 'o2', full_name: 'Paul M.', verified: true, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o2', full_name: 'Paul M.', verified: true, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '3', site: 'tricastin', site_name: 'Tricastin', type: 'studio',
@@ -159,7 +159,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-1592651563903-4b13924f3c06?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.5, review_count: 42,
     description: 'Studio tout équipé. Literie neuve, cuisine équipée, lave-linge. Transports en commun à 200m.',
-    owner: { id: 'o3', full_name: 'Sophie K.', verified: false, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o3', full_name: 'Sophie K.', verified: false, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '4', site: 'tricastin', site_name: 'Tricastin', type: 'chambre',
@@ -171,7 +171,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-rGqEO2rTUs0?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.8, review_count: 57,
     description: 'Chambre privée chez habitant expérimenté. Comprend les horaires décalés. Navette site à 300m.',
-    owner: { id: 'o4', full_name: 'André B.', verified: true, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o4', full_name: 'André B.', verified: true, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '6', site: 'cruas', site_name: 'Cruas-Meysse', type: 'appartement',
@@ -183,7 +183,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-1661962646245-5ec5dd3d0bcd?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.8, review_count: 23,
     description: 'T2 à 1,2 km du portail principal de Cruas-Meysse. Calme, lumineux, tout équipé. Proprio souple sur horaires.',
-    owner: { id: 'o5', full_name: 'Christophe V.', verified: true, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o5', full_name: 'Christophe V.', verified: true, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '7', site: 'cruas', site_name: 'Cruas-Meysse', type: 'maison',
@@ -195,7 +195,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-v8tngVQMS9k?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.9, review_count: 8,
     description: 'Maison de village rénovée. 2 chambres, terrasse vue Rhône. Garage 1 voiture. Gare Montélimar à 15 min.',
-    owner: { id: 'o6', full_name: 'Nathalie G.', verified: true, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o6', full_name: 'Nathalie G.', verified: true, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '8', site: 'cruas', site_name: 'Cruas-Meysse', type: 'studio',
@@ -207,7 +207,7 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-1593455427837-93e1f58b0df2?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.4, review_count: 36,
     description: 'Studio centre-ville Montélimar. A7 à 2 min. Commerces, restaurants à pied.',
-    owner: { id: 'o7', full_name: 'Laurent T.', verified: false, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o7', full_name: 'Laurent T.', verified: false, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
   {
     id: '9', site: 'cruas', site_name: 'Cruas-Meysse', type: 'appartement',
@@ -219,6 +219,6 @@ export const MOCK_LISTINGS: Partial<Listing>[] = [
     photos: ['https://images.unsplash.com/photo-nPWwHpUI35E?auto=format&fit=crop&w=800&q=80'],
     avg_rating: 4.7, review_count: 12,
     description: 'Grand T3 tout confort, 2 ch. doubles, 2 SDB, clim. Parking couvert 2 places. Draps inclus.',
-    owner: { id: 'o8', full_name: 'Pierre L.', verified: true, role: 'proprietaire', email: '', created_at: '', updated_at: '' },
+    owner: { id: 'o8', full_name: 'Pierre L.', verified: true, role: 'proprietaire', email: '', avatar_url: null, company: null, phone: null, created_at: '', updated_at: '' },
   },
 ]
