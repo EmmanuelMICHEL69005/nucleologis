@@ -1,12 +1,13 @@
 'use client'
-import { useState } from 'react'
+import { useState, use } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { MapPin, Star, Wifi, Car, WashingMachine, ChevronLeft, Share2 } from 'lucide-react'
 import { MOCK_LISTINGS, AMENITY_LABELS, AMENITY_ICONS } from '@/lib/data'
 
-export default function AnnoncePage({ params }: { params: { id: string } }) {
-  const listing = MOCK_LISTINGS.find(l => l.id === params.id)
+export default function AnnoncePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const listing = MOCK_LISTINGS.find(l => l.id === id)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
