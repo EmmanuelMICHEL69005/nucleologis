@@ -4,6 +4,17 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
+function translateError(msg: string): string {
+  if (!msg || msg === '{}') return 'Une erreur est survenue. Veuillez réessayer.'
+  if (msg.includes('Invalid login credentials')) return 'Email ou mot de passe incorrect.'
+  if (msg.includes('User already registered') || msg.includes('already been registered')) return 'Un compte existe déjà avec cet email.'
+  if (msg.includes('Password should be at least')) return 'Le mot de passe doit contenir au moins 6 caractères.'
+  if (msg.includes('Unable to validate email')) return 'Adresse email invalide.'
+  if (msg.includes('Email rate limit')) return 'Trop de tentatives. Veuillez patienter quelques minutes.'
+  if (msg.includes('signup is disabled')) return 'Les inscriptions sont temporairement désactivées.'
+  return 'Une erreur est survenue. Veuillez réessayer.'
+}
+
 export default function AuthPage() {
   const router = useRouter()
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -25,9 +36,7 @@ export default function AuthPage() {
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
-        setError(error.message === 'Invalid login credentials'
-          ? 'Email ou mot de passe incorrect.'
-          : error.message)
+        setError(translateError(error.message))
       } else {
         router.push('/')
       }
@@ -40,7 +49,7 @@ export default function AuthPage() {
         },
       })
       if (error) {
-        setError(error.message)
+        setError(translateError(error.message))
       } else {
         setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.')
       }
