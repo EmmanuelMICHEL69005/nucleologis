@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, ChevronDown, LogOut, Home, FileText } from 'lucide-react'
+import { Menu, X, ChevronDown, LogOut, Home, FileText, CalendarCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -95,6 +95,9 @@ export default function Navbar() {
                   <Link href="/proprietaire" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 transition">
                     <Home size={14} className="text-gray-400"/> Espace propriétaire
                   </Link>
+                  <Link href="/mes-reservations" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 transition">
+                    <CalendarCheck size={14} className="text-gray-400"/> Mes réservations
+                  </Link>
                   <Link href="/facture" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 transition">
                     <FileText size={14} className="text-gray-400"/> Mes factures
                   </Link>
@@ -129,6 +132,7 @@ export default function Navbar() {
           <Link href="/facture" className="block py-2.5 border-b border-white/10" onClick={() => setOpen(false)}>🧾 Générer une facture</Link>
           {user ? (
             <>
+              <Link href="/mes-reservations" className="block py-2.5 border-b border-white/10" onClick={() => setOpen(false)}>Mes réservations</Link>
               <div className="py-2.5 border-b border-white/10 text-white/60 text-xs">{user.email}</div>
               <button onClick={handleLogout} className="block py-2.5 text-red-400 w-full text-left">
                 Se déconnecter

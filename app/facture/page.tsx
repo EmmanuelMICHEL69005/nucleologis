@@ -1,10 +1,9 @@
 'use client'
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { useRouter } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Printer, CheckCircle } from 'lucide-react'
-import { SITES_NUCLEAIRES, MOCK_OWNER_PROFILE, MOCK_OWNER_ADDRESS, MOCK_RESERVATIONS } from '@/lib/data'
+import { SITES_NUCLEAIRES } from '@/lib/data'
 import { supabase } from '@/lib/supabase'
 
 interface FactureData {
@@ -54,22 +53,11 @@ function FacturePageInner() {
   const router = useRouter()
   const resId = searchParams.get('res')
   const printRef = useRef<HTMLDivElement>(null)
-  const [selectedRes, setSelectedRes] = useState<string>(resId ?? '')
+
+  // ── Tous les hooks AVANT tout return conditionnel ──
   const [checking, setChecking] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.replace('/auth')
-      else setChecking(false)
-    })
-  }, [router])
-
-  if (checking) return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-      <div className="text-gray-400 text-sm">Vérification...</div>
-    </div>
-  )
-
+  const [selectedRes, setSelectedRes] = useState<string>(resId ?? '')
+  const [reservations, setReservations] = useState<any[]>([])
   const [f, setF] = useState<FactureData>({
     bailleur_nom: '', bailleur_adresse: '', bailleur_ville: '', bailleur_zip: '',
     bailleur_tel: '', bailleur_email: '',
@@ -79,46 +67,85 @@ function FacturePageInner() {
     prix_semaine: '', numero_facture: '', date_facture: '',
   })
 
-  // Initialiser avec les données du proprio connecté + numéro auto
+  // Auth + chargement profil réel + réservations
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
-    const numAuto = `NL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`
-    setF(prev => ({
-      ...prev,
-      bailleur_nom: MOCK_OWNER_PROFILE.full_name,
-      bailleur_adresse: MOCK_OWNER_ADDRESS.adresse,
-      bailleur_ville: MOCK_OWNER_ADDRESS.ville,
-      bailleur_zip: MOCK_OWNER_ADDRESS.zip,
-      bailleur_tel: MOCK_OWNER_PROFILE.phone ?? '',
-      bailleur_email: MOCK_OWNER_PROFILE.email,
-      numero_facture: prev.numero_facture || numAuto,
-      date_facture: prev.date_facture || today,
-    }))
-  }, [])
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { router.replace('/auth'); return }
+
+      const today = new Date().toISOString().split('T')[0]
+      const numAuto = `NL-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`
+
+      // Profil réel de l'utilisateur connecté
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', session.user.id)
+        .single()
+
+      const name = profile?.full_name || session.user.user_metadata?.full_name || ''
+      const email = profile?.email || session.user.email || ''
+      const phone = profile?.phone || ''
+
+      setF(prev => ({
+        ...prev,
+        bailleur_nom: name,
+        bailleur_email: email,
+        bailleur_tel: phone,
+        numero_facture: prev.numero_facture || numAuto,
+        date_facture: prev.date_facture || today,
+      }))
+
+      // Réservations réelles liées aux annonces de ce proprio
+      const { data: myListings } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('owner_id', session.user.id)
+
+      if (myListings && myListings.length > 0) {
+        const ids = myListings.map((l: any) => l.id)
+        const { data: res } = await supabase
+          .from('reservations')
+          .select('*, listing:listings(title, address, city, zip, site, site_name, price_week), tenant:profiles!tenant_id(full_name, phone)')
+          .in('listing_id', ids)
+          .in('statut', ['acceptee', 'terminee'])
+          .order('created_at', { ascending: false })
+        setReservations(res ?? [])
+      }
+
+      setChecking(false)
+    })
+  }, [router])
 
   // Pré-remplir depuis une réservation sélectionnée
   useEffect(() => {
-    if (!selectedRes) return
-    const res = MOCK_RESERVATIONS.find(r => r.id === selectedRes)
+    if (!selectedRes || reservations.length === 0) return
+    const res = reservations.find((r: any) => r.id === selectedRes)
     if (!res) return
     setF(prev => ({
       ...prev,
-      locataire_nom: res.tenant_name,
-      locataire_societe: res.tenant_societe,
-      locataire_adresse: res.tenant_adresse,
-      adresse_logement: res.listing_adresse,
-      ville_logement: res.listing_ville,
-      zip_logement: res.listing_zip,
-      site_nucleaire: res.listing_site,
+      locataire_nom: res.tenant?.full_name ?? '',
+      locataire_societe: '',
+      locataire_adresse: '',
+      adresse_logement: res.listing?.address ?? '',
+      ville_logement: res.listing?.city ?? '',
+      zip_logement: res.listing?.zip ?? '',
+      site_nucleaire: res.listing?.site ?? '',
       date_entree: res.date_start ?? '',
       date_sortie: res.date_end ?? '',
-      prix_semaine: String(res.listing_prix_semaine),
+      prix_semaine: String(res.listing?.price_week ?? ''),
     }))
-  }, [selectedRes])
+  }, [selectedRes, reservations])
 
   function set(k: keyof FactureData, v: string) {
     setF(prev => ({ ...prev, [k]: v }))
   }
+
+  // ── Return conditionnel APRÈS tous les hooks ──
+  if (checking) return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Chargement...</div>
+    </div>
+  )
 
   const semaines = nbSemaines(f.date_entree, f.date_sortie)
   const prixSemaine = parseFloat(f.prix_semaine) || 0
@@ -138,7 +165,7 @@ function FacturePageInner() {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Générateur de facture</h1>
             <p className="text-gray-500 text-sm mt-1">
-              Vos informations sont pré-remplies. Sélectionnez une réservation pour compléter automatiquement.
+              Vos informations sont pré-remplies. Sélectionnez une réservation ou remplissez manuellement.
             </p>
           </div>
           <button
@@ -155,55 +182,47 @@ function FacturePageInner() {
       {/* Sélecteur de réservation */}
       <div className="print:hidden mb-6">
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-          <h3 className="font-semibold text-[#1e3a5f] mb-1 flex items-center gap-2">
-            📋 Choisir une réservation
-          </h3>
-          <p className="text-xs text-blue-600 mb-4">Cliquez sur une réservation pour pré-remplir le formulaire automatiquement.</p>
-          <div className="space-y-2">
-            {MOCK_RESERVATIONS.map(res => {
-              const isSelected = selectedRes === res.id
-              return (
-                <button
-                  key={res.id}
-                  onClick={() => setSelectedRes(isSelected ? '' : res.id!)}
-                  className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border-2 transition ${
-                    isSelected
-                      ? 'border-[#1e3a5f] bg-white shadow-sm'
-                      : 'border-transparent bg-white/60 hover:bg-white hover:border-gray-200'
-                  }`}
-                >
-                  <div className="w-9 h-9 rounded-full bg-[#1e3a5f] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {res.tenant_name[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm text-gray-800">{res.tenant_name}
-                      {res.tenant_societe && <span className="font-normal text-gray-400"> · {res.tenant_societe}</span>}
-                    </div>
-                    <div className="text-xs text-gray-500 truncate">{res.listing_title}</div>
-                    <div className="text-xs text-gray-400">
-                      📅 {formatDate(res.date_start ?? '')} → {formatDate(res.date_end ?? '')}
-                      &nbsp;·&nbsp;
-                      {formatEuro(res.price_total ?? 0)}
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      res.statut === 'terminee' ? 'bg-gray-100 text-gray-500'
-                      : res.statut === 'acceptee' ? 'bg-green-50 text-green-700'
-                      : 'bg-yellow-50 text-yellow-700'
-                    }`}>
-                      {STATUT_LABELS[res.statut ?? ''] ?? res.statut}
-                    </span>
-                    {isSelected && <CheckCircle size={16} className="text-[#1e3a5f]"/>}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-          {!selectedRes && (
-            <p className="text-xs text-blue-500 mt-3 text-center">
-              Ou remplissez manuellement les champs ci-dessous ↓
-            </p>
+          <h3 className="font-semibold text-[#1e3a5f] mb-1">📋 Choisir une réservation</h3>
+          {reservations.length === 0 ? (
+            <p className="text-sm text-blue-600">Aucune réservation active — remplissez manuellement les champs ci-dessous ↓</p>
+          ) : (
+            <>
+              <p className="text-xs text-blue-600 mb-4">Cliquez sur une réservation pour pré-remplir automatiquement.</p>
+              <div className="space-y-2">
+                {reservations.map((res: any) => {
+                  const isSelected = selectedRes === res.id
+                  return (
+                    <button
+                      key={res.id}
+                      onClick={() => setSelectedRes(isSelected ? '' : res.id)}
+                      className={`w-full text-left flex items-center gap-4 p-3 rounded-xl border-2 transition ${
+                        isSelected ? 'border-[#1e3a5f] bg-white shadow-sm' : 'border-transparent bg-white/60 hover:bg-white hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-full bg-[#1e3a5f] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {(res.tenant?.full_name ?? '?')[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-gray-800">{res.tenant?.full_name}</div>
+                        <div className="text-xs text-gray-500 truncate">{res.listing?.title}</div>
+                        <div className="text-xs text-gray-400">
+                          📅 {formatDate(res.date_start)} → {formatDate(res.date_end)}
+                          &nbsp;·&nbsp;{formatEuro(res.price_total ?? 0)}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          res.statut === 'terminee' ? 'bg-gray-100 text-gray-500' : 'bg-green-50 text-green-700'
+                        }`}>
+                          {STATUT_LABELS[res.statut] ?? res.statut}
+                        </span>
+                        {isSelected && <CheckCircle size={16} className="text-[#1e3a5f]"/>}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -212,14 +231,9 @@ function FacturePageInner() {
         {/* Formulaire */}
         <div className="print:hidden lg:w-80 flex-shrink-0 space-y-5">
 
-          {/* Bailleur — pré-rempli depuis le profil */}
+          {/* Bailleur */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm text-gray-700">🏡 Bailleur (vous)</h3>
-              {MOCK_OWNER_PROFILE.verified && (
-                <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">✓ Vérifié</span>
-              )}
-            </div>
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">🏡 Bailleur (vous)</h3>
             <div className="space-y-3">
               {([
                 { k: 'bailleur_nom', label: 'Nom complet' },
@@ -240,13 +254,9 @@ function FacturePageInner() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-3">
-              Pour modifier vos infos définitivement :{' '}
-              <Link href="/proprietaire" className="text-orange-500 hover:underline">Espace propriétaire → Profil</Link>
-            </p>
           </div>
 
-          {/* Locataire — pré-rempli depuis la réservation */}
+          {/* Locataire */}
           <div className={`bg-white rounded-2xl border p-5 transition ${selectedRes ? 'border-blue-200' : 'border-gray-100'}`}>
             <h3 className="font-semibold text-sm text-gray-700 mb-3">
               🔧 Locataire (technicien)
@@ -260,19 +270,15 @@ function FacturePageInner() {
               ] as { k: keyof FactureData; label: string; placeholder: string }[]).map(field => (
                 <div key={field.k}>
                   <label className="block text-xs font-semibold text-gray-400 mb-1">{field.label}</label>
-                  <input
-                    type="text"
-                    value={f[field.k]}
-                    onChange={e => set(field.k, e.target.value)}
+                  <input type="text" value={f[field.k]} onChange={e => set(field.k, e.target.value)}
                     placeholder={field.placeholder}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Séjour — pré-rempli depuis la réservation */}
+          {/* Séjour */}
           <div className={`bg-white rounded-2xl border p-5 transition ${selectedRes ? 'border-blue-200' : 'border-gray-100'}`}>
             <h3 className="font-semibold text-sm text-gray-700 mb-3">
               📅 Séjour
@@ -281,15 +287,10 @@ function FacturePageInner() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1">Site nucléaire</label>
-                <select
-                  value={f.site_nucleaire}
-                  onChange={e => set('site_nucleaire', e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+                <select value={f.site_nucleaire} onChange={e => set('site_nucleaire', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Choisir…</option>
-                  {SITES_NUCLEAIRES.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                  {SITES_NUCLEAIRES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               {([
@@ -299,13 +300,9 @@ function FacturePageInner() {
               ] as { k: keyof FactureData; label: string; placeholder: string }[]).map(field => (
                 <div key={field.k}>
                   <label className="block text-xs font-semibold text-gray-400 mb-1">{field.label}</label>
-                  <input
-                    type="text"
-                    value={f[field.k]}
-                    onChange={e => set(field.k, e.target.value)}
+                  <input type="text" value={f[field.k]} onChange={e => set(field.k, e.target.value)}
                     placeholder={field.placeholder}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                 </div>
               ))}
               <div className="grid grid-cols-2 gap-2">
@@ -334,7 +331,7 @@ function FacturePageInner() {
             </div>
           </div>
 
-          {/* Numéro de facture */}
+          {/* Références */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h3 className="font-semibold text-sm text-gray-700 mb-3">📄 Références</h3>
             <div className="space-y-3">
@@ -356,7 +353,6 @@ function FacturePageInner() {
         <div ref={printRef} className="flex-1 min-w-0">
           <div className="bg-white border border-gray-200 rounded-2xl p-8 print:rounded-none print:border-0 print:p-10" style={{ minHeight: 700 }}>
 
-            {/* En-tête facture */}
             <div className="flex items-start justify-between mb-8 pb-6 border-b-2 border-[#1e3a5f]">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -373,7 +369,6 @@ function FacturePageInner() {
               </div>
             </div>
 
-            {/* Parties */}
             <div className="grid grid-cols-2 gap-8 mb-8">
               <div>
                 <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Bailleur</div>
@@ -391,7 +386,6 @@ function FacturePageInner() {
               </div>
             </div>
 
-            {/* Logement */}
             <div className="bg-gray-50 rounded-xl p-4 mb-6">
               <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Logement loué</div>
               <div className="font-medium text-gray-800">
@@ -401,7 +395,6 @@ function FacturePageInner() {
               {siteName && <div className="text-sm text-gray-500 mt-1">⚛ Proximité du site EDF de {siteName}</div>}
             </div>
 
-            {/* Tableau */}
             <table className="w-full mb-6 text-sm">
               <thead>
                 <tr className="bg-[#1e3a5f] text-white">
@@ -442,7 +435,6 @@ function FacturePageInner() {
               </tfoot>
             </table>
 
-            {/* Attestation */}
             <div className="border border-gray-200 rounded-xl p-4 mb-6 text-sm text-gray-600">
               <div className="font-semibold text-gray-700 mb-1">Attestation de paiement</div>
               Je soussigné(e) <strong>{f.bailleur_nom || '____________________'}</strong>, bailleur du logement
@@ -453,7 +445,6 @@ function FacturePageInner() {
               du loyer pour la période du {formatDate(f.date_entree)} au {formatDate(f.date_sortie)}.
             </div>
 
-            {/* Signatures */}
             <div className="grid grid-cols-2 gap-8 mt-8">
               <div>
                 <div className="text-xs text-gray-400 mb-1">Signature du bailleur</div>
@@ -474,7 +465,6 @@ function FacturePageInner() {
             </div>
           </div>
 
-          {/* Bouton impression bas de page */}
           <div className="print:hidden mt-4 flex justify-end">
             <button
               onClick={() => window.print()}

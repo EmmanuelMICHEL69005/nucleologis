@@ -1,24 +1,83 @@
 'use client'
-import { useState, use } from 'react'
+import { useState, useEffect, use } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { MapPin, Star, Wifi, Car, WashingMachine, ChevronLeft, Share2 } from 'lucide-react'
+import { MapPin, Star, ChevronLeft, Share2, Loader2, CheckCircle } from 'lucide-react'
 import { MOCK_LISTINGS, AMENITY_LABELS, AMENITY_ICONS } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
+import type { Listing } from '@/types/database'
 
 export default function AnnoncePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const listing = MOCK_LISTINGS.find(l => l.id === id)
+
+  const [listing, setListing] = useState<Partial<Listing> | null | undefined>(undefined)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
   const [msg, setMsg] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
-  if (!listing) notFound()
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user.id ?? null)
+      setCheckingAuth(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('listings')
+        .select('*, owner:profiles!owner_id(*)')
+        .eq('id', id)
+        .single()
+
+      if (data) { setListing(data); return }
+
+      const mock = MOCK_LISTINGS.find(l => l.id === id)
+      setListing(mock ?? null)
+    }
+    load()
+  }, [id])
+
+  if (listing === undefined) return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Chargement...</div>
+    </div>
+  )
+
+  if (listing === null) notFound()
 
   const nights = dateStart && dateEnd
     ? Math.max(0, Math.round((new Date(dateEnd).getTime() - new Date(dateStart).getTime()) / (1000 * 60 * 60 * 24 * 7)))
     : 0
   const total = nights * (listing.price_week ?? 0)
+
+  async function handleReserve() {
+    if (!userId || !dateStart || !dateEnd) return
+    setSubmitting(true)
+    setSubmitError('')
+    const { error } = await supabase.from('reservations').insert({
+      listing_id: id,
+      tenant_id: userId,
+      date_start: dateStart,
+      date_end: dateEnd,
+      price_total: total,
+      statut: 'en_attente',
+      stripe_payment_intent: null,
+      message_initial: msg || null,
+    })
+    if (error) {
+      setSubmitError("Erreur lors de l'envoi de la demande : " + error.message)
+    } else {
+      setSubmitted(true)
+    }
+    setSubmitting(false)
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -75,9 +134,15 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
                 <MapPin size={13} className="text-orange-400"/>
                 {listing.city} · <strong className="text-gray-700">{listing.distance_km} km</strong> du site
                 <span className="text-gray-200">·</span>
-                <Star size={12} className="text-yellow-400 fill-yellow-400"/>
-                <span className="font-medium text-gray-700">{listing.avg_rating?.toFixed(1)}</span>
-                <span className="text-gray-400">({listing.review_count} avis)</span>
+                {listing.review_count ? (
+                  <>
+                    <Star size={12} className="text-yellow-400 fill-yellow-400"/>
+                    <span className="font-medium text-gray-700">{listing.avg_rating?.toFixed(1)}</span>
+                    <span className="text-gray-400">({listing.review_count} avis)</span>
+                  </>
+                ) : (
+                  <span className="text-gray-400 text-xs">Nouvelle annonce</span>
+                )}
               </div>
             </div>
             <button className="text-gray-400 hover:text-gray-600 transition flex-shrink-0">
@@ -130,11 +195,8 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
                 {listing.owner?.full_name}
                 {listing.owner?.verified && <span className="ml-2 text-green-500 text-sm">✓ Vérifié</span>}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">Propriétaire expérimenté · Habitué aux horaires décalés</p>
+              <p className="text-xs text-gray-500 mt-0.5">Propriétaire · Habitué aux horaires décalés</p>
             </div>
-            <button className="text-sm font-medium text-[#1e3a5f] border border-[#1e3a5f] px-4 py-2 rounded-lg hover:bg-[#1e3a5f] hover:text-white transition">
-              Contacter
-            </button>
           </div>
 
           {/* Map placeholder */}
@@ -153,50 +215,81 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
             <div className="text-sm text-gray-400 mb-1">{listing.price_month}€/mois</div>
             <p className="text-xs text-gray-400 mb-5 border-b border-gray-100 pb-4">Paiement convenu directement entre vous et le propriétaire.</p>
 
-            <div className="space-y-3 mb-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Arrivée souhaitée</label>
-                <input
-                  type="date"
-                  value={dateStart}
-                  onChange={e => setDateStart(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            {submitted ? (
+              <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
+                <CheckCircle size={28} className="text-green-500 mx-auto mb-2"/>
+                <div className="font-semibold text-green-700 text-sm mb-1">Demande envoyée !</div>
+                <p className="text-xs text-green-600">Le propriétaire va examiner votre demande. Suivez son statut depuis votre espace.</p>
+                <Link href="/mes-reservations" className="inline-block mt-3 text-xs font-medium text-green-700 hover:underline">
+                  Voir mes réservations →
+                </Link>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Départ prévu</label>
-                <input
-                  type="date"
-                  value={dateEnd}
-                  onChange={e => setDateEnd(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Votre message</label>
-                <textarea
-                  value={msg}
-                  onChange={e => setMsg(e.target.value)}
-                  placeholder="Bonjour, je suis technicien pour le grand arrêt du Tricastin, je cherche un logement du..."
-                  rows={4}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-            </div>
-
-            {nights > 0 && (
-              <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm">
-                <div className="flex justify-between text-gray-700 font-medium">
-                  <span>Estimation {nights} sem.</span>
-                  <span>{total}€</span>
+            ) : (
+              <>
+                <div className="space-y-3 mb-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Arrivée souhaitée</label>
+                    <input
+                      type="date"
+                      value={dateStart}
+                      onChange={e => setDateStart(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Départ prévu</label>
+                    <input
+                      type="date"
+                      value={dateEnd}
+                      onChange={e => setDateEnd(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Votre message</label>
+                    <textarea
+                      value={msg}
+                      onChange={e => setMsg(e.target.value)}
+                      placeholder="Bonjour, je suis technicien pour le grand arrêt du Tricastin, je cherche un logement du..."
+                      rows={4}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5">À confirmer avec le propriétaire</div>
-              </div>
-            )}
 
-            <Link href="/auth" className="block w-full bg-orange-500 hover:bg-orange-600 text-white text-center py-3 rounded-xl font-semibold transition">
-              Contacter le propriétaire
-            </Link>
+                {nights > 0 && (
+                  <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm">
+                    <div className="flex justify-between text-gray-700 font-medium">
+                      <span>Estimation {nights} sem.</span>
+                      <span>{total}€</span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">À confirmer avec le propriétaire</div>
+                  </div>
+                )}
+
+                {submitError && (
+                  <div className="text-xs bg-red-50 text-red-600 rounded-lg p-3 border border-red-100 mb-3">
+                    {submitError}
+                  </div>
+                )}
+
+                {checkingAuth ? (
+                  <div className="w-full bg-gray-100 text-gray-400 text-center py-3 rounded-xl font-semibold text-sm">...</div>
+                ) : !userId ? (
+                  <Link href="/auth" className="block w-full bg-orange-500 hover:bg-orange-600 text-white text-center py-3 rounded-xl font-semibold transition">
+                    Se connecter pour réserver
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleReserve}
+                    disabled={!dateStart || !dateEnd || submitting}
+                    className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-center py-3 rounded-xl font-semibold transition"
+                  >
+                    {submitting ? <><Loader2 size={16} className="animate-spin"/> Envoi...</> : 'Envoyer la demande'}
+                  </button>
+                )}
+              </>
+            )}
 
             <div className="mt-4 pt-4 border-t border-gray-100">
               <Link href="/facture" className="flex items-center justify-center gap-2 text-sm text-[#1e3a5f] hover:underline font-medium">

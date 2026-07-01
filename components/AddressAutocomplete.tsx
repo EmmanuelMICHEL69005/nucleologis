@@ -21,7 +21,7 @@ export default function AddressAutocomplete({ value, onChange, onSelect, placeho
   const [suggestions, setSuggestions] = useState<AddressResult[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

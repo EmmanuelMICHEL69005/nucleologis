@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Link from 'next/link'
 import './globals.css'
 import Navbar from '@/components/Navbar'
 
@@ -26,10 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="font-bold text-white">NucléoLogis ☢</div>
             <div className="text-sm flex gap-6">
-              <a href="#" className="hover:text-white transition">Mentions légales</a>
-              <a href="#" className="hover:text-white transition">CGU</a>
-              <a href="#" className="hover:text-white transition">RGPD</a>
-              <a href="#" className="hover:text-white transition">Contact</a>
+              <Link href="/mentions-legales" className="hover:text-white transition">Mentions légales</Link>
+              <Link href="/cgu" className="hover:text-white transition">CGU</Link>
+              <Link href="/rgpd" className="hover:text-white transition">RGPD</Link>
+              <Link href="/contact" className="hover:text-white transition">Contact</Link>
             </div>
             <div className="text-xs">© 2026 NucléoLogis · Tous droits réservés</div>
           </div>

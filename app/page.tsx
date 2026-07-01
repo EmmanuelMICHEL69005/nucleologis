@@ -1,9 +1,18 @@
 import Link from 'next/link'
 import ListingCard from '@/components/ListingCard'
 import { MOCK_LISTINGS, SITES_NUCLEAIRES } from '@/lib/data'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-export default function Home() {
-  const featured = MOCK_LISTINGS.slice(0, 4)
+export default async function Home() {
+  const supabase = await createSupabaseServerClient()
+  const { data: realListings } = await supabase
+    .from('listings')
+    .select('*, owner:profiles!owner_id(*)')
+    .eq('available', true)
+    .order('created_at', { ascending: false })
+    .limit(4)
+
+  const featured = [...(realListings ?? []), ...MOCK_LISTINGS].slice(0, 4)
 
   return (
     <div>

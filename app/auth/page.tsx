@@ -55,7 +55,7 @@ export default function AuthPage() {
       } else if (data.user && data.user.identities?.length === 0) {
         setError('Un compte existe déjà avec cet email. Essayez de vous connecter.')
       } else {
-        setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.')
+        setSuccess('Compte créé avec succès ! Vous pouvez maintenant vous connecter.')
       }
     }
 
@@ -220,9 +220,9 @@ export default function AuthPage() {
             {mode === 'register' && (
               <p className="text-center text-xs text-gray-300 mt-2">
                 En créant un compte, vous acceptez nos{' '}
-                <Link href="#" className="text-gray-400 hover:underline">CGU</Link>
+                <Link href="/cgu" className="text-gray-400 hover:underline">CGU</Link>
                 {' '}et notre{' '}
-                <Link href="#" className="text-gray-400 hover:underline">politique de confidentialité</Link>.
+                <Link href="/rgpd" className="text-gray-400 hover:underline">politique de confidentialité</Link>.
               </p>
             )}
           </div>

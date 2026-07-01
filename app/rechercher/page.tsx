@@ -1,8 +1,11 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { SlidersHorizontal, X } from 'lucide-react'
 import ListingCard from '@/components/ListingCard'
 import { MOCK_LISTINGS, SITES_NUCLEAIRES } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
+import type { Listing } from '@/types/database'
 
 const TYPES = ['studio', 'appartement', 'maison', 'chambre']
 const BUDGETS = [
@@ -13,22 +16,35 @@ const BUDGETS = [
   { label: '> 500€/sem', min: 500, max: Infinity },
 ]
 
-export default function RechercherPage() {
-  const [site, setSite] = useState('')
+function RechercherPageInner() {
+  const searchParams = useSearchParams()
+  const [site, setSite] = useState(searchParams.get('site') ?? '')
   const [type, setType] = useState('')
   const [budget, setBudget] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
+  const [realListings, setRealListings] = useState<Partial<Listing>[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('listings')
+      .select('*, owner:profiles!owner_id(*)')
+      .eq('available', true)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setRealListings(data ?? []))
+  }, [])
+
+  const allListings = useMemo(() => [...realListings, ...MOCK_LISTINGS], [realListings])
 
   const listings = useMemo(() => {
     const b = BUDGETS[budget]
-    return MOCK_LISTINGS.filter(l => {
+    return allListings.filter(l => {
       if (site && l.site !== site) return false
       if (type && l.type !== type) return false
       if (l.price_week === undefined) return true
       if (l.price_week < b.min || l.price_week > b.max) return false
       return true
     })
-  }, [site, type, budget])
+  }, [site, type, budget, allListings])
 
   const hasFilters = site || type || budget > 0
 
@@ -133,5 +149,13 @@ export default function RechercherPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RechercherPage() {
+  return (
+    <Suspense>
+      <RechercherPageInner/>
+    </Suspense>
   )
 }

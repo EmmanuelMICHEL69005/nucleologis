@@ -2,15 +2,16 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { SITES_NUCLEAIRES, AMENITY_LABELS, AMENITY_ICONS } from '@/lib/data'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
 import { supabase } from '@/lib/supabase'
+import type { TypeLogement } from '@/types/database'
 
 const STEPS = ['Logement', 'Détails', 'Équipements', 'Prix & photos']
 
 const TYPES = [
-  { val: 'studio', label: 'Studio', icon: '🏠', desc: '1 pièce, jusqu\'à 35m²' },
+  { val: 'studio', label: 'Studio', icon: '🏠', desc: 'Une pièce, jusqu\'à 35m²' },
   { val: 'appartement', label: 'Appartement', icon: '🏢', desc: 'T1 à T5+' },
   { val: 'maison', label: 'Maison', icon: '🏡', desc: 'Individuelle ou mitoyenne' },
   { val: 'chambre', label: 'Chambre chez l\'habitant', icon: '🛏️', desc: 'Chambre privée, parties communes partagées' },
@@ -18,21 +19,12 @@ const TYPES = [
 
 export default function NouvelleAnnoncePage() {
   const router = useRouter()
+
+  // ── Tous les hooks AVANT tout return conditionnel ──
   const [checking, setChecking] = useState(true)
   const [step, setStep] = useState(0)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.replace('/auth')
-      else setChecking(false)
-    })
-  }, [router])
-
-  if (checking) return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-      <div className="text-gray-400 text-sm">Chargement...</div>
-    </div>
-  )
+  const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState('')
   const [form, setForm] = useState({
     type: '',
     site: '',
@@ -51,6 +43,13 @@ export default function NouvelleAnnoncePage() {
     description: '',
   })
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.replace('/auth')
+      else setChecking(false)
+    })
+  }, [router])
+
   function update(k: string, v: string | string[]) {
     setForm(f => ({ ...f, [k]: v }))
   }
@@ -62,12 +61,62 @@ export default function NouvelleAnnoncePage() {
     }))
   }
 
+  async function handlePublish() {
+    setPublishing(true)
+    setPublishError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.push('/auth'); return }
+
+      const site = SITES_NUCLEAIRES.find(s => s.id === form.site)
+      const typeLabel = TYPES.find(t => t.val === form.type)?.label ?? form.type
+
+      const { error } = await supabase.from('listings').insert({
+        owner_id: session.user.id,
+        site: form.site,
+        site_name: site?.name ?? form.site,
+        type: form.type as TypeLogement,
+        title: `${typeLabel} — ${site?.name ?? form.site}`,
+        description: form.description,
+        address: form.address,
+        city: form.city,
+        zip: form.zip,
+        distance_km: parseFloat(form.distance_km) || 0,
+        surface_m2: parseInt(form.surface_m2) || 0,
+        bedrooms: parseInt(form.bedrooms) || 0,
+        bathrooms: parseInt(form.bathrooms) || 1,
+        price_week: parseInt(form.price_week) || 0,
+        price_month: parseInt(form.price_month) || 0,
+        amenities: form.amenities,
+        photos: form.photos,
+        available: true,
+        available_from: null,
+        min_duration_weeks: parseInt(form.min_duration_weeks) || 1,
+      })
+
+      if (error) {
+        setPublishError('Erreur lors de la publication : ' + error.message)
+      } else {
+        router.push('/proprietaire?published=1')
+      }
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const canNext = [
     form.type && form.site,
     form.address && form.city && form.zip && form.surface_m2,
-    true, // amenities are optional
+    true,
     form.price_week && form.price_month && form.description,
   ]
+
+  // ── Return conditionnel APRÈS tous les hooks ──
+  if (checking) return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Chargement...</div>
+    </div>
+  )
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -239,25 +288,30 @@ export default function NouvelleAnnoncePage() {
               <div className="text-4xl mb-2">📸</div>
               <p className="text-sm">Glissez vos photos ici ou cliquez pour sélectionner</p>
               <p className="text-xs mt-1">Formats acceptés : JPG, PNG, WebP · Max 10 Mo/photo</p>
-              <button className="mt-3 bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm transition">
+              <button type="button" className="mt-3 bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm transition">
                 Choisir des photos
               </button>
-              <p className="text-xs text-orange-500 mt-2">Upload vers Supabase Storage (à connecter)</p>
             </div>
           </div>
 
-          {/* Preview pricing */}
-          {form.price_week && form.price_month && (
+          {/* Simulation revenus — sans commission */}
+          {form.price_week && (
             <div className="bg-blue-50 rounded-xl p-4 text-sm">
               <div className="font-semibold text-[#1e3a5f] mb-2">Simulation de revenus</div>
               <div className="flex justify-between text-gray-600 mb-1">
                 <span>Grand arrêt 6 semaines</span>
-                <span className="font-semibold">{6 * parseInt(form.price_week)}€ brut</span>
+                <span className="font-semibold">{6 * parseInt(form.price_week)}€</span>
               </div>
-              <div className="flex justify-between text-gray-400 text-xs">
-                <span>Après commission NucléoLogis (8%)</span>
-                <span>{Math.round(6 * parseInt(form.price_week) * 0.92)}€</span>
+              <div className="flex justify-between text-gray-600">
+                <span>Grand arrêt 10 semaines</span>
+                <span className="font-semibold">{10 * parseInt(form.price_week)}€</span>
               </div>
+            </div>
+          )}
+
+          {publishError && (
+            <div className="text-xs bg-red-50 text-red-600 rounded-lg p-3 border border-red-100">
+              {publishError}
             </div>
           )}
         </div>
@@ -283,10 +337,11 @@ export default function NouvelleAnnoncePage() {
           </button>
         ) : (
           <button
-            disabled={!canNext[3]}
+            onClick={handlePublish}
+            disabled={!canNext[3] || publishing}
             className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
-            <Check size={15}/> Publier l'annonce
+            {publishing ? <><Loader2 size={15} className="animate-spin"/> Publication...</> : <><Check size={15}/> Publier l'annonce</>}
           </button>
         )}
       </div>

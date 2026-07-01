@@ -3,39 +3,46 @@ export type TypeLogement = 'studio' | 'appartement' | 'maison' | 'chambre'
 export type UserRole = 'travailleur' | 'proprietaire'
 export type StatutReservation = 'en_attente' | 'acceptee' | 'refusee' | 'annulee' | 'terminee'
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: {
         Row: Profile
         Insert: Omit<Profile, 'created_at' | 'updated_at'>
         Update: Partial<Omit<Profile, 'id' | 'created_at'>>
+        Relationships: []
       }
       listings: {
         Row: Listing
         Insert: Omit<Listing, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<Listing, 'id' | 'created_at'>>
+        Relationships: []
       }
       reservations: {
         Row: Reservation
         Insert: Omit<Reservation, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<Reservation, 'id' | 'created_at'>>
+        Relationships: []
       }
       messages: {
         Row: Message
         Insert: Omit<Message, 'id' | 'created_at'>
-        Update: never
+        Update: Partial<Omit<Message, 'id' | 'created_at'>>
+        Relationships: []
       }
       reviews: {
         Row: Review
         Insert: Omit<Review, 'id' | 'created_at'>
-        Update: never
+        Update: Partial<Omit<Review, 'id' | 'created_at'>>
+        Relationships: []
       }
     }
+    Views: Record<string, never>
+    Functions: Record<string, never>
   }
 }
 
-export interface Profile {
+export type Profile = {
   id: string
   email: string
   full_name: string
@@ -48,7 +55,7 @@ export interface Profile {
   updated_at: string
 }
 
-export interface Listing {
+export type Listing = {
   id: string
   owner_id: string
   site: string
@@ -79,7 +86,7 @@ export interface Listing {
   review_count?: number
 }
 
-export interface Reservation {
+export type Reservation = {
   id: string
   listing_id: string
   tenant_id: string
@@ -96,7 +103,7 @@ export interface Reservation {
   tenant?: Profile
 }
 
-export interface Message {
+export type Message = {
   id: string
   reservation_id: string
   sender_id: string
@@ -106,7 +113,7 @@ export interface Message {
   sender?: Profile
 }
 
-export interface Review {
+export type Review = {
   id: string
   listing_id: string
   author_id: string

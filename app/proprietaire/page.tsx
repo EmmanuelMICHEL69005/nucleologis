@@ -26,6 +26,7 @@ export default function ProprietairePage() {
   const [userName, setUserName] = useState('')
   const [listings, setListings] = useState<any[]>([])
   const [reservations, setReservations] = useState<any[]>([])
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -69,6 +70,24 @@ export default function ProprietairePage() {
       setChecking(false)
     })
   }, [router])
+
+  async function updateReservationStatut(id: string, statut: 'acceptee' | 'refusee') {
+    setBusyId(id)
+    const { error } = await supabase.from('reservations').update({ statut }).eq('id', id)
+    if (!error) {
+      setReservations(prev => prev.map(r => r.id === id ? { ...r, statut } : r))
+    }
+    setBusyId(null)
+  }
+
+  async function toggleListingAvailable(id: string, current: boolean) {
+    setBusyId(id)
+    const { error } = await supabase.from('listings').update({ available: !current }).eq('id', id)
+    if (!error) {
+      setListings(prev => prev.map(l => l.id === id ? { ...l, available: !current } : l))
+    }
+    setBusyId(null)
+  }
 
   if (checking) return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -209,8 +228,16 @@ export default function ProprietairePage() {
                     <div className="text-xs text-gray-400 mt-0.5">{l.city} · {l.surface_m2}m² · {l.price_week}€/sem</div>
                   </div>
                   <div className="flex flex-col gap-2 flex-shrink-0">
-                    <button className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition">Modifier</button>
-                    <button className="text-xs border border-red-100 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">Désactiver</button>
+                    <Link href={`/proprietaire/annonce/${l.id}/modifier`} className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition text-center">
+                      Modifier
+                    </Link>
+                    <button
+                      onClick={() => toggleListingAvailable(l.id, l.available)}
+                      disabled={busyId === l.id}
+                      className="text-xs border border-red-100 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition disabled:opacity-40"
+                    >
+                      {l.available ? 'Désactiver' : 'Réactiver'}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -250,8 +277,20 @@ export default function ProprietairePage() {
                 <div className="flex gap-2 pt-3 border-t border-gray-50">
                   {r.statut === 'en_attente' && (
                     <>
-                      <button className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-medium transition">Accepter</button>
-                      <button className="flex-1 border border-red-200 text-red-500 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition">Refuser</button>
+                      <button
+                        onClick={() => updateReservationStatut(r.id, 'acceptee')}
+                        disabled={busyId === r.id}
+                        className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-medium transition disabled:opacity-40"
+                      >
+                        Accepter
+                      </button>
+                      <button
+                        onClick={() => updateReservationStatut(r.id, 'refusee')}
+                        disabled={busyId === r.id}
+                        className="flex-1 border border-red-200 text-red-500 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition disabled:opacity-40"
+                      >
+                        Refuser
+                      </button>
                     </>
                   )}
                   {(r.statut === 'acceptee' || r.statut === 'terminee') && (
@@ -262,7 +301,6 @@ export default function ProprietairePage() {
                       <FileText size={13}/> Générer la facture
                     </Link>
                   )}
-                  <button className="border border-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Message</button>
                 </div>
               </div>
             ))
