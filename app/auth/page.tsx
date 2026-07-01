@@ -10,7 +10,8 @@ export default function AuthPage() {
   const [role, setRole] = useState<'travailleur' | 'proprietaire'>('travailleur')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -35,7 +36,7 @@ export default function AuthPage() {
         email,
         password,
         options: {
-          data: { full_name: name, role },
+          data: { full_name: `${firstName} ${lastName}`.trim(), role },
         },
       })
       if (error) {
@@ -49,7 +50,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12 bg-gray-50">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
           {/* Header */}
@@ -102,16 +103,29 @@ export default function AuthPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'register' && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Nom complet</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="Jean-Pierre Martin"
-                    required
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Prénom</label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={e => setFirstName(e.target.value)}
+                      placeholder="Jean-Pierre"
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Nom</label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={e => setLastName(e.target.value)}
+                      placeholder="Martin"
+                      required
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               )}
 
