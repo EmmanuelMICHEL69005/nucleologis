@@ -6,13 +6,15 @@ import { supabase } from '@/lib/supabase'
 
 function translateError(msg: string): string {
   if (!msg || msg === '{}') return 'Une erreur est survenue. Veuillez réessayer.'
-  if (msg.includes('Invalid login credentials')) return 'Email ou mot de passe incorrect.'
-  if (msg.includes('User already registered') || msg.includes('already been registered')) return 'Un compte existe déjà avec cet email.'
-  if (msg.includes('Password should be at least')) return 'Le mot de passe doit contenir au moins 6 caractères.'
-  if (msg.includes('Unable to validate email')) return 'Adresse email invalide.'
-  if (msg.includes('Email rate limit')) return 'Trop de tentatives. Veuillez patienter quelques minutes.'
-  if (msg.includes('signup is disabled')) return 'Les inscriptions sont temporairement désactivées.'
-  return 'Une erreur est survenue. Veuillez réessayer.'
+  const m = msg.toLowerCase()
+  if (m.includes('invalid login credentials') || m.includes('invalid_credentials')) return 'Email ou mot de passe incorrect.'
+  if (m.includes('already registered') || m.includes('already been registered') || m.includes('already exists') || m.includes('email address is already')) return 'Un compte existe déjà avec cet email. Essayez de vous connecter.'
+  if (m.includes('password should be at least') || m.includes('password is too short')) return 'Le mot de passe doit contenir au moins 6 caractères.'
+  if (m.includes('unable to validate email') || m.includes('invalid email')) return 'Adresse email invalide.'
+  if (m.includes('email rate limit') || m.includes('rate limit') || m.includes('too many')) return 'Trop de tentatives. Veuillez patienter quelques minutes.'
+  if (m.includes('signup is disabled') || m.includes('signups not allowed')) return 'Les inscriptions sont temporairement désactivées.'
+  if (m.includes('email not confirmed')) return 'Vérifiez votre email pour confirmer votre inscription.'
+  return msg.length > 3 && msg !== '{}' ? msg : 'Une erreur est survenue. Veuillez réessayer.'
 }
 
 export default function AuthPage() {
@@ -41,7 +43,7 @@ export default function AuthPage() {
         router.push('/')
       }
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -50,6 +52,8 @@ export default function AuthPage() {
       })
       if (error) {
         setError(translateError(error.message))
+      } else if (data.user && data.user.identities?.length === 0) {
+        setError('Un compte existe déjà avec cet email. Essayez de vous connecter.')
       } else {
         setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.')
       }
