@@ -1,9 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { SITES_NUCLEAIRES, AMENITY_LABELS, AMENITY_ICONS } from '@/lib/data'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
+import { supabase } from '@/lib/supabase'
 
 const STEPS = ['Logement', 'Détails', 'Équipements', 'Prix & photos']
 
@@ -15,7 +17,22 @@ const TYPES = [
 ]
 
 export default function NouvelleAnnoncePage() {
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
   const [step, setStep] = useState(0)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.replace('/auth')
+      else setChecking(false)
+    })
+  }, [router])
+
+  if (checking) return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Chargement...</div>
+    </div>
+  )
   const [form, setForm] = useState({
     type: '',
     site: '',
