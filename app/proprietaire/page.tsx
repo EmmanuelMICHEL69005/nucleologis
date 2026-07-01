@@ -1,8 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { MOCK_LISTINGS, MOCK_RESERVATIONS as RESERVATIONS_DATA } from '@/lib/data'
 import { Plus, TrendingUp, Home, CalendarCheck, MessageSquare, Star, FileText } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 const MOCK_RESERVATIONS = [
   { id: 'r1', tenant: 'Jean-Pierre M.', listing: 'Appartement T2 — 2 km du Tricastin', dates: '12 jan → 8 fév 2026', statut: 'acceptee', total: 2600 },
@@ -25,7 +27,22 @@ const STATUT_LABELS: Record<string, string> = {
 }
 
 export default function ProprietairePage() {
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'annonces' | 'reservations' | 'messages'>('dashboard')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.replace('/auth')
+      else setChecking(false)
+    })
+  }, [router])
+
+  if (checking) return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Vérification...</div>
+    </div>
+  )
   const myListings = MOCK_LISTINGS.filter(l => ['1', '4'].includes(l.id ?? ''))
 
   return (

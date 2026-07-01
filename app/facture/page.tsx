@@ -1,9 +1,11 @@
 'use client'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Printer, CheckCircle } from 'lucide-react'
 import { SITES_NUCLEAIRES, MOCK_OWNER_PROFILE, MOCK_OWNER_ADDRESS, MOCK_RESERVATIONS } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 
 interface FactureData {
   bailleur_nom: string
@@ -49,9 +51,24 @@ const STATUT_LABELS: Record<string, string> = {
 
 function FacturePageInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const resId = searchParams.get('res')
   const printRef = useRef<HTMLDivElement>(null)
   const [selectedRes, setSelectedRes] = useState<string>(resId ?? '')
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.replace('/auth')
+      else setChecking(false)
+    })
+  }, [router])
+
+  if (checking) return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Vérification...</div>
+    </div>
+  )
 
   const [f, setF] = useState<FactureData>({
     bailleur_nom: '', bailleur_adresse: '', bailleur_ville: '', bailleur_zip: '',
